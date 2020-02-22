@@ -10,19 +10,40 @@ import Foundation
 //import Common
 
 public protocol IIndentLog {
-	var LogIndent : Int { get set }
-	var LogFileURL : URL? { get set }
+	var IndentLog_Indent : Int { get set }
+	var IndentLog_URL : URL? { get set }
 	
-	var Log : IIndentLog? { get set }
+	var IndentLog_Instance : IIndentLog? { get set }
 	
-	@discardableResult
-	func IncreaseLogIndent() -> Int
-	@discardableResult
-	func DecreaseLogIndent() -> Int
-	@discardableResult
-	func ResetLogIndent(_ indent: Int) -> Int
+//	@discardableResult
+//	func IncreaseLogIndent() -> Int
+//	@discardableResult
+//	func DecreaseLogIndent() -> Int
+//	@discardableResult
+//	func ResetLogIndent(_ indent: Int) -> Int
 	
 	//func AllowLog(_ logType: LogType) -> Bool
+}
+
+public extension IIndentLog {
+	
+	@discardableResult
+	mutating func IndentLog_Increment() -> Int {
+		var log = IndentLog_Instance
+		return log?.IndentLog_Reset(IndentLog_Indent + 1) ?? 0
+	}
+	
+	@discardableResult
+	mutating func IndentLog_Decrement() -> Int {
+		var log = IndentLog_Instance
+		return log?.IndentLog_Reset(IndentLog_Indent - 1) ?? 0
+	}
+	
+	@discardableResult
+	mutating func IndentLog_Reset(_ indent: Int) -> Int {
+		IndentLog_Indent = indent < 0 ? 0 : indent
+		return IndentLog_Indent
+	}
 }
 
 public enum LogType : String {
@@ -105,32 +126,44 @@ extension Date {
 
 public extension Optional where Wrapped == IIndentLog {
 	
+	/// New indent with no return value
+	/// - Parameters:
+	///   - title: Description to show on the log
+	///   - innerCode: This is called with no return value. When finished the indent is complete too.
 	func indent(_ title: String, _ innerCode: () -> Void) {
+		
+		//We can assume the log itself might not always be instanciated, but we still need to execute the code.
 		if self == nil {
 			innerCode()
 			return
 		}
-		let log = self!
-		let indent = log.LogIndent
+		var log = self!
+		let indent = log.IndentLog_Indent
 		let inTS = Date()
 		write(">>>", title)
-		log.IncreaseLogIndent()
+		log.IndentLog_Increment()
 		innerCode()
-		log.ResetLogIndent(indent)
+		log.IndentLog_Reset(indent)
 		write("<<<", "\(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
+	/// New indent with a return value
+	/// - Parameters:
+	///   - title: Description to show on the log
+	///   - innerCode: This is called with a return value. When finished the indent is complete too.
 	func indent<T>(_ title: String, _ innerCode: () -> T) -> T {
+
+		//We can assume the log itself might not always be instanciated, but we still need to execute the code.
 		if self == nil {
 			return innerCode()
 		}
-		let log = self!
-		let indent = log.LogIndent
+		var log = self!
+		let indent = log.IndentLog_Indent
 		let inTS = Date()
 		write(">>>", title)
-		log.IncreaseLogIndent()
+		log.IndentLog_Increment()
 		let ret = innerCode()
-		log.ResetLogIndent(indent)
+		log.IndentLog_Reset(indent)
 		write("<<<", "\(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
 		return ret
 	}
@@ -140,13 +173,13 @@ public extension Optional where Wrapped == IIndentLog {
 			innerCode()
 			return
 		}
-		let log = self!
-		let indent = log.LogIndent
+		var log = self!
+		let indent = log.IndentLog_Indent
 		let inTS = Date()
 		args(title, keyAndValues, "CHK")
-		log.IncreaseLogIndent()
+		log.IndentLog_Increment()
 		innerCode()
-		log.ResetLogIndent(indent)
+		log.IndentLog_Reset(indent)
 		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
@@ -154,13 +187,13 @@ public extension Optional where Wrapped == IIndentLog {
 		if self == nil {
 			return innerCode()
 		}
-		let log = self!
-		let indent = log.LogIndent
+		var log = self!
+		let indent = log.IndentLog_Indent
 		let inTS = Date()
 		args(title, keyAndValues, "CHK")
-		log.IncreaseLogIndent()
+		log.IndentLog_Increment()
 		let ret = innerCode()
-		log.ResetLogIndent(indent)
+		log.IndentLog_Reset(indent)
 		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
 		return ret
 	}
@@ -172,13 +205,13 @@ public extension Optional where Wrapped == IIndentLog {
 			return
 		}
 
-		let log = self!
-		let indent = log.LogIndent
+		var log = self!
+		let indent = log.IndentLog_Indent
 		let inTS = Date()
 		args(title, keyAndValues, "CHK")
-		log.IncreaseLogIndent()
+		log.IndentLog_Increment()
 		innerCode()
-		log.ResetLogIndent(indent)
+		log.IndentLog_Reset(indent)
 		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
@@ -186,14 +219,14 @@ public extension Optional where Wrapped == IIndentLog {
 		if self == nil {
 			return innerCode()
 		}
-		let log = self!
+		var log = self!
 		self.label(label)
-		let indent = log.LogIndent
+		let indent = log.IndentLog_Indent
 		let inTS = Date()
 		args(title, keyAndValues, "CHK")
-		log.IncreaseLogIndent()
+		log.IndentLog_Increment()
 		let ret = innerCode()
-		log.ResetLogIndent(indent)
+		log.IndentLog_Reset(indent)
 		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
 		return ret
 		
@@ -233,7 +266,7 @@ public extension Optional where Wrapped == IIndentLog {
 		let messageLines = message.splitIntoLines(maxLen)
 		var output = Date().standardString() + "  "
 		let cat = (category + "   ").substring(from: 0, length: 3).uppercased()
-		let indent = indentSpaces(indentedCount ?? self!.LogIndent)
+		let indent = indentSpaces(indentedCount ?? self!.IndentLog_Indent)
 		output += cat + "  " + indent
 		var allOutput = ""
 		var reset = false
@@ -247,7 +280,7 @@ public extension Optional where Wrapped == IIndentLog {
 				reset = true
 			}
 		}
-		if let url = self!.LogFileURL {
+		if let url = self!.IndentLog_URL {
 			do {
 				try allOutput.appendToURL(fileURL: url)
 			}
@@ -265,7 +298,7 @@ public extension Optional where Wrapped == IIndentLog {
 		var output = Date().standardString() + "  "
 		output = " ".repeating(output.length() + 5) + message
 
-		if let url = self!.LogFileURL {
+		if let url = self!.IndentLog_URL {
 			do {
 				try output.appendToURL(fileURL: url)
 			}

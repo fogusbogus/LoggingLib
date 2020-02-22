@@ -16,10 +16,10 @@ open class BaseIndentLog : IIndentLog {
 	public init() {
 		
 	}
-	public var LogIndent: Int = 0
+	public var IndentLog_Indent: Int = 0
 	private var _logFileURL : URL? = nil
 	public var DefaultFileName = "logFile.txt"
-	public var LogFileURL : URL? {
+	public var IndentLog_URL : URL? {
 		get {
 			if _logFileURL == nil {
 				let dir: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).last! as URL
@@ -37,7 +37,7 @@ open class BaseIndentLog : IIndentLog {
 	}
 	
 	private var _log : IIndentLog? = nil
-	public var Log : IIndentLog? {
+	public var IndentLog_Instance : IIndentLog? {
 		get {
 			return _log // ?? self
 		}
@@ -47,16 +47,16 @@ open class BaseIndentLog : IIndentLog {
 	}
 
 	public func IncreaseLogIndent() -> Int {
-		return ResetLogIndent(LogIndent + 1)
+		return ResetLogIndent(IndentLog_Indent + 1)
 	}
 	
 	public func DecreaseLogIndent() -> Int {
-		return ResetLogIndent(LogIndent - 1)
+		return ResetLogIndent(IndentLog_Indent - 1)
 	}
 	
 	public func ResetLogIndent(_ indent: Int) -> Int {
-		LogIndent = indent < 0 ? 0 : indent
-		return LogIndent
+		IndentLog_Indent = indent < 0 ? 0 : indent
+		return IndentLog_Indent
 	}
 	
 }
