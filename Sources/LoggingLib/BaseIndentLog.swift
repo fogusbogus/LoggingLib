@@ -46,18 +46,18 @@ open class BaseIndentLog : IIndentLog {
 		}
 	}
 
-	public func IncreaseLogIndent() -> Int {
-		return ResetLogIndent(IndentLog_Indent + 1)
-	}
-	
-	public func DecreaseLogIndent() -> Int {
-		return ResetLogIndent(IndentLog_Indent - 1)
-	}
-	
-	public func ResetLogIndent(_ indent: Int) -> Int {
-		IndentLog_Indent = indent < 0 ? 0 : indent
-		return IndentLog_Indent
-	}
+//	public func IncreaseLogIndent() -> Int {
+//		return ResetLogIndent(IndentLog_Indent + 1)
+//	}
+//
+//	public func DecreaseLogIndent() -> Int {
+//		return ResetLogIndent(IndentLog_Indent - 1)
+//	}
+//
+//	public func ResetLogIndent(_ indent: Int) -> Int {
+//		IndentLog_Indent = indent < 0 ? 0 : indent
+//		return IndentLog_Indent
+//	}
 	
 }
 
