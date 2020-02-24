@@ -122,6 +122,243 @@ extension Date {
 		formatter.maximumUnitCount = 1
 		return formatter.string(from: ts)!
 	}
+	
+}
+
+public extension IIndentLog {
+	
+	/// New indent with no return value
+	/// - Parameters:
+	///   - title: Description to show on the log
+	///   - innerCode: This is called with no return value. When finished the indent is complete too.
+	func indent(_ title: String, _ innerCode: () -> Void) {
+		
+		var log = self
+		let indent = log.IndentLog_Indent
+		let inTS = Date()
+		write(">>>", title)
+		log.IndentLog_Increment()
+		innerCode()
+		log.IndentLog_Reset(indent)
+		write("<<<", "\(title) {\(Date().timeSinceString(inTS))}")
+	}
+	
+	/// New indent with a return value
+	/// - Parameters:
+	///   - title: Description to show on the log
+	///   - innerCode: This is called with a return value. When finished the indent is complete too.
+	func indent<T>(_ title: String, _ innerCode: () -> T) -> T {
+
+		var log = self
+		let indent = log.IndentLog_Indent
+		let inTS = Date()
+		write(">>>", title)
+		log.IndentLog_Increment()
+		let ret = innerCode()
+		log.IndentLog_Reset(indent)
+		write("<<<", "\(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		return ret
+	}
+	
+	func checkpoint(_ title: String, _ innerCode: () -> Void, keyAndValues: [String:Any?]) {
+
+		var log = self
+		let indent = log.IndentLog_Indent
+		let inTS = Date()
+		args(title, keyAndValues, "CHK")
+		log.IndentLog_Increment()
+		innerCode()
+		log.IndentLog_Reset(indent)
+		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
+	}
+	
+	func checkpoint<T>(_ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
+
+		var log = self
+		let indent = log.IndentLog_Indent
+		let inTS = Date()
+		args(title, keyAndValues, "CHK")
+		log.IndentLog_Increment()
+		let ret = innerCode()
+		log.IndentLog_Reset(indent)
+		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		return ret
+	}
+	
+	func checkpoint(_ label: String, _ title: String, _ innerCode: () -> Void, keyAndValues: [String:Any?]) {
+		self.label(label)
+
+		var log = self
+		let indent = log.IndentLog_Indent
+		let inTS = Date()
+		args(title, keyAndValues, "CHK")
+		log.IndentLog_Increment()
+		innerCode()
+		log.IndentLog_Reset(indent)
+		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
+	}
+	
+	func checkpoint<T>(_ label: String, _ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
+
+		var log = self
+		self.label(label)
+		let indent = log.IndentLog_Indent
+		let inTS = Date()
+		args(title, keyAndValues, "CHK")
+		log.IndentLog_Increment()
+		let ret = innerCode()
+		log.IndentLog_Reset(indent)
+		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		return ret
+		
+	}
+	
+	func label(_ title: String) {
+
+		let lines = title.splitIntoLines(60)
+		let max = lines.map { (s) -> Int in
+			return s.trim().length()
+		}.max() ?? 0
+		blank()
+		if max > 0 {
+			let spaces = " ".repeating(max)
+			let top = "/".repeating(max + 8)
+			write("///", top, 1000, 0)
+			for line in lines {
+				let outline = "/// " + (line.trim() + spaces).substring(from: 0, length: max) + " ///"
+				writeNoTS(outline)
+			}
+			writeNoTS(top)
+		}
+	}
+	
+	func blank() {
+		writeNoTS("")
+	}
+	
+	private func indentSpaces(_ indent: Int) -> String {
+		return ".  ".repeating(indent)
+	}
+	
+	private func write(_ category: String, _ message: String, _ maxLen: Int = 60, _ indentedCount : Int? = nil) {
+		
+		let messageLines = message.splitIntoLines(maxLen)
+		var output = Date().standardString() + "  "
+		let cat = (category + "   ").substring(from: 0, length: 3).uppercased()
+		let indent = indentSpaces(indentedCount ?? self.IndentLog_Indent)
+		output += cat + "  " + indent
+		var allOutput = ""
+		var reset = false
+		for line in messageLines {
+			if allOutput != "" {
+				allOutput += "\n"
+			}
+			allOutput += output + line
+			if !reset {
+				output = " ".repeating(output.length())
+				reset = true
+			}
+		}
+		if let url = self.IndentLog_URL {
+			do {
+				try allOutput.appendToURL(fileURL: url)
+			}
+			catch {
+				print(output)
+			}
+		}
+		else {
+			print(output)
+		}
+	}
+	
+	private func writeNoTS(_ message: String) {
+		
+		var output = Date().standardString() + "  "
+		output = " ".repeating(output.length() + 5) + message
+
+		if let url = self.IndentLog_URL {
+			do {
+				try output.appendToURL(fileURL: url)
+			}
+			catch {
+				print(output)
+			}
+		}
+		else {
+			print(output)
+		}
+	}
+	
+	func args(_ title: String, _ keysValues: [String:Any?], _ alternate: String = "ARG") {
+
+		if title.trim().length() > 0 {
+			write(alternate, title)
+		}
+		let maxLen = keysValues.keys.map { (k) -> Int in
+			return k.trim().length()
+		}.max()
+		if maxLen == nil {
+			return
+		}
+		
+		for kv in keysValues {
+			let k = (kv.key + " ".repeat(maxLen!)).substring(from: 0, length: maxLen!)
+			if (kv.value == nil) {
+				write("...", "--> \(k) : <nil>")
+			}
+			else {
+				write("...", "--> \(k) : \(kv.value!)")
+			}
+		}
+		write("", "")
+	}
+	
+	func debug(_ message: String, _ arguments: [String:Any?]) {
+
+		args(message, arguments, "DBG")
+	}
+	func debug(_ message: String, _ arguments: CVarArg...) {
+
+		write("DBG", String(format: message, arguments))
+	}
+	
+	func info(_ message: String, _ arguments: [String:Any?]) {
+
+		args(message, arguments, "INF")
+	}
+	func info(_ message: String, _ arguments: CVarArg...) {
+
+		write("INF", String(format: message, arguments))
+	}
+	
+	func warn(_ message: String, _ arguments: [String:Any?]) {
+
+		args(message, arguments, "WRN")
+	}
+	func warn(_ message: String, _ arguments: CVarArg...) {
+
+		write("WRN", String(format: message, arguments))
+	}
+	
+	func error(_ message: String, _ arguments: [String:Any?]) {
+
+		args(message, arguments, "ERR")
+	}
+	func error(_ message: String, _ arguments: CVarArg...) {
+
+		write("ERR", String(format: message, arguments))
+	}
+	
+	func SQL(_ message: String, _ arguments: [String:Any?]) {
+
+		args(message, arguments, "SQL")
+	}
+	func SQL(_ message: String, _ args: CVarArg...) {
+
+		write("SQL", String(format: message, args))
+	}
+	
 }
 
 public extension Optional where Wrapped == IIndentLog {
