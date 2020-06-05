@@ -264,11 +264,11 @@ public extension IIndentLog {
 				try allOutput.appendToURL(fileURL: url)
 			}
 			catch {
-				print(output)
+				print(allOutput)
 			}
 		}
 		else {
-			print(output)
+			print(allOutput)
 		}
 	}
 	
