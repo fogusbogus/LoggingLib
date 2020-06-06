@@ -147,7 +147,7 @@ public extension IIndentLog {
 	/// - Parameters:
 	///   - title: Description to show on the log
 	///   - innerCode: This is called with a return value. When finished the indent is complete too.
-	func indent<T>(_ title: String, _ innerCode: () -> T, _ summary: ((T) -> Void)?) -> T {
+	func indent<T>(_ title: String, _ innerCode: () -> T, summary: ((T) -> Void)?) -> T {
 
 		var log = self
 		let indent = log.IndentLog_Indent
@@ -176,10 +176,10 @@ public extension IIndentLog {
 	}
 	
 	func checkpoint<T>(_ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
-		return checkpoint(title, innerCode, nil, keyAndValues: keyAndValues)
+		return checkpoint(title, innerCode, summary: nil, keyAndValues: keyAndValues)
 	}
 	
-	func checkpoint<T>(_ title: String, _ innerCode: () -> T, _ summary: ((T) -> Void)?, keyAndValues: [String:Any?]) -> T {
+	func checkpoint<T>(_ title: String, _ innerCode: () -> T, summary: ((T) -> Void)?, keyAndValues: [String:Any?]) -> T {
 		var log = self
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
@@ -208,9 +208,9 @@ public extension IIndentLog {
 	}
 	
 	func checkpoint<T>(_ label: String, _ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
-		return checkpoint(label, title, innerCode, nil, keyAndValues: keyAndValues)
+		return checkpoint(label, title, innerCode, summary: nil, keyAndValues: keyAndValues)
 	}
-	func checkpoint<T>(_ label: String, _ title: String, _ innerCode: () -> T, _ summary: ((T) -> Void)?, keyAndValues: [String:Any?]) -> T {
+	func checkpoint<T>(_ label: String, _ title: String, _ innerCode: () -> T, summary: ((T) -> Void)?, keyAndValues: [String:Any?]) -> T {
 
 		var log = self
 		self.label(label)
