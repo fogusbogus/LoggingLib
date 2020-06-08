@@ -9,6 +9,7 @@
 import Foundation
 
 open class BaseIndentLog : IIndentLog {
+	
 	public func AllowLog(_ logType: LogType) -> Bool {
 		return true
 	}
@@ -16,6 +17,9 @@ open class BaseIndentLog : IIndentLog {
 	public init() {
 		
 	}
+	
+	public var IndentLog_Allowed: [LogType]? = nil
+	
 	public var IndentLog_Indent: Int = 0
 	private var _logFileURL : URL? = nil
 	public var DefaultFileName = "logFile.txt"
@@ -45,19 +49,6 @@ open class BaseIndentLog : IIndentLog {
 			_log = newValue
 		}
 	}
-
-//	public func IncreaseLogIndent() -> Int {
-//		return ResetLogIndent(IndentLog_Indent + 1)
-//	}
-//
-//	public func DecreaseLogIndent() -> Int {
-//		return ResetLogIndent(IndentLog_Indent - 1)
-//	}
-//
-//	public func ResetLogIndent(_ indent: Int) -> Int {
-//		IndentLog_Indent = indent < 0 ? 0 : indent
-//		return IndentLog_Indent
-//	}
 	
 }
 

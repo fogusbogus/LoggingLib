@@ -15,14 +15,7 @@ public protocol IIndentLog {
 	
 	var IndentLog_Instance : IIndentLog? { get set }
 	
-//	@discardableResult
-//	func IncreaseLogIndent() -> Int
-//	@discardableResult
-//	func DecreaseLogIndent() -> Int
-//	@discardableResult
-//	func ResetLogIndent(_ indent: Int) -> Int
-	
-	//func AllowLog(_ logType: LogType) -> Bool
+	var IndentLog_Allowed : [LogType]? { get set }
 }
 
 public extension IIndentLog {
@@ -47,34 +40,37 @@ public extension IIndentLog {
 }
 
 public enum LogType : String {
-	case Debug
-	case Info
-	case Checkpoint
-	case Indent
-	case Timed
-	case Warn
-	case Error
-	case Fatal
-	case Other
+	case debug
+	case info
+	case checkpoint
+	case indent
+	case timed
+	case warning
+	case error
+	case fatal
+	case sql
+	case other
 	
 	func toCode() -> String {
 		switch self {
-		case .Checkpoint:
+		case .checkpoint:
 			return "CHK"
-		case .Debug:
+		case .debug:
 			return "DBG"
-		case .Error:
+		case .error:
 			return "ERR"
-		case .Fatal:
+		case .fatal:
 			return "FTL"
-		case .Indent:
+		case .indent:
 			return ">>>"
-		case .Info:
+		case .info:
 			return "INF"
-		case .Other:
+		case .other:
 			return "???"
-		case .Timed:
+		case .timed:
 			return "TMR"
+		case .sql:
+			return "SQL"
 		default:
 			return "WRN"
 		}
@@ -84,23 +80,25 @@ public enum LogType : String {
 		let code = (code + "   ").substring(from: 0, length: 3).uppercased()
 		switch code {
 		case "DBG":
-			return .Debug
+			return .debug
 		case "CHK":
-			return .Checkpoint
+			return .checkpoint
 		case "INF":
-			return .Info
+			return .info
 		case ">>>":
-			return .Indent
+			return .indent
 		case "TMR":
-			return .Timed
+			return .timed
 		case "WRN":
-			return .Warn
+			return .warning
 		case "ERR":
-			return .Error
+			return .error
 		case "FTL":
-			return .Fatal
+			return .fatal
+		case "SQL":
+			return .sql
 		default:
-			return .Other
+			return .other
 		}
 	}
 	
@@ -136,11 +134,13 @@ public extension IIndentLog {
 		var log = self
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		write(">>>", title)
-		log.IndentLog_Increment()
+		write(type: .indent, category: ">>>", message: title)
+		if isAllowed(.indent) {
+			log.IndentLog_Increment()
+		}
 		innerCode()
 		log.IndentLog_Reset(indent)
-		write("<<<", "\(title) {\(Date().timeSinceString(inTS))}")
+		write(type: .indent, category: "<<<", message: "\(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
 	/// New indent with a return value
@@ -152,11 +152,14 @@ public extension IIndentLog {
 		var log = self
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		write(">>>", title)
-		log.IndentLog_Increment()
+		write(type: .indent, category: ">>>", message: title)
+		if isAllowed(.indent) {
+			log.IndentLog_Increment()
+		}
+
 		let ret = innerCode()
 		log.IndentLog_Reset(indent)
-		write("<<<", "\(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		write(type: .indent, category: "<<<", message: "\(title) {\(Date().timeSinceString(inTS))}")
 		if let callSummary = summary {
 			callSummary(ret)
 		}
@@ -168,11 +171,13 @@ public extension IIndentLog {
 		var log = self
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
 	func checkpoint<T>(_ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
@@ -183,11 +188,13 @@ public extension IIndentLog {
 		var log = self
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		let ret = innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
 		if let callSummary = summary {
 			callSummary(ret)
 		}
@@ -195,16 +202,18 @@ public extension IIndentLog {
 	}
 	
 	func checkpoint(_ label: String, _ title: String, _ innerCode: () -> Void, keyAndValues: [String:Any?]) {
-		self.label(label)
+		if isAllowed(.checkpoint) { self.label(label) }
 
 		var log = self
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
 	func checkpoint<T>(_ label: String, _ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
@@ -213,14 +222,16 @@ public extension IIndentLog {
 	func checkpoint<T>(_ label: String, _ title: String, _ innerCode: () -> T, summary: ((T) -> Void)?, keyAndValues: [String:Any?]) -> T {
 
 		var log = self
-		self.label(label)
+		if isAllowed(.checkpoint) { self.label(label) }
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		let ret = innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
 		if let callSummary = summary {
 			callSummary(ret)
 		}
@@ -229,6 +240,7 @@ public extension IIndentLog {
 	}
 	
 	func label(_ title: String) {
+		guard IndentLog_Allowed?.count ?? 1 > 0 else { return }
 
 		let lines = title.splitIntoLines(60)
 		let max = lines.map { (s) -> Int in
@@ -238,7 +250,7 @@ public extension IIndentLog {
 		if max > 0 {
 			let spaces = " ".repeating(max)
 			let top = "/".repeating(max + 8)
-			write("///", top, 1000, 0)
+			write(category: "///", message: top, maxLen: 1000, indentedCount: 0)
 			for line in lines {
 				let outline = "/// " + (line.trim() + spaces).substring(from: 0, length: max) + " ///"
 				writeNoTS(outline)
@@ -248,6 +260,8 @@ public extension IIndentLog {
 	}
 	
 	func blank() {
+		guard IndentLog_Allowed?.count ?? 1 > 0 else { return }
+
 		writeNoTS("")
 	}
 	
@@ -255,7 +269,33 @@ public extension IIndentLog {
 		return ".  ".repeating(indent)
 	}
 	
-	private func write(_ category: String, _ message: String, _ maxLen: Int = 60, _ indentedCount : Int? = nil) {
+	private func getURLFileLength(_ filePath: URL) -> UInt64 {
+		do {
+			let _attrs = try FileManager.default.attributesOfItem(atPath: filePath.path)
+			return _attrs[.size] as? UInt64 ?? UInt64(0)
+		}
+		catch {
+			
+		}
+		return UInt64.zero
+	}
+	
+	private func isAllowed(_ types: LogType...) -> Bool {
+		guard let allowedTypes = IndentLog_Allowed else {
+			return true
+		}
+		return types.first { (type) -> Bool in
+			return allowedTypes.contains(type)
+		} != nil
+	}
+	
+	private func write(type: LogType, category: String, message: String, maxLen: Int = 60, indentedCount : Int? = nil) {
+		if isAllowed(type) {
+			write(category: category, message: message, maxLen: maxLen, indentedCount: indentedCount)
+		}
+	}
+	
+	private func write(category: String, message: String, maxLen: Int = 60, indentedCount : Int? = nil) {
 		
 		let messageLines = message.splitIntoLines(maxLen)
 		var output = Date().standardString() + "  "
@@ -306,9 +346,10 @@ public extension IIndentLog {
 	}
 	
 	func args(_ title: String, _ keysValues: [String:Any?], _ alternate: String = "ARG") {
+		guard IndentLog_Allowed?.count ?? 1 > 0 else { return }
 
 		if title.trim().length() > 0 {
-			write(alternate, title)
+			write(category: alternate, message: title)
 		}
 		let maxLen = keysValues.keys.map { (k) -> Int in
 			return k.trim().length()
@@ -320,58 +361,78 @@ public extension IIndentLog {
 		for kv in keysValues {
 			let k = (kv.key + " ".repeat(maxLen!)).substring(from: 0, length: maxLen!)
 			if (kv.value == nil) {
-				write("...", "--> \(k) : <nil>")
+				write(category: "...", message: "--> \(k) : <nil>")
 			}
 			else {
-				write("...", "--> \(k) : \(kv.value!)")
+				write(category: "...", message: "--> \(k) : \(kv.value!)")
 			}
 		}
-		write("", "")
+		blank()
 	}
 	
 	func debug(_ message: String, _ arguments: [String:Any?]) {
 
-		args(message, arguments, "DBG")
+		guard isAllowed(.debug) else { return }
+
+		args(message, arguments, LogType.debug.toCode())
 	}
 	func debug(_ message: String, _ arguments: CVarArg...) {
 
-		write("DBG", String(format: message, arguments))
+		guard isAllowed(.debug) else { return }
+		
+		write(category: LogType.debug.toCode(), message: String(format: message, arguments))
 	}
 	
 	func info(_ message: String, _ arguments: [String:Any?]) {
 
-		args(message, arguments, "INF")
+		guard isAllowed(.info) else { return }
+		
+		args(message, arguments, LogType.info.toCode())
 	}
 	func info(_ message: String, _ arguments: CVarArg...) {
 
-		write("INF", String(format: message, arguments))
+		guard isAllowed(.info) else { return }
+		
+		write(category: LogType.info.toCode(), message: String(format: message, arguments))
 	}
 	
 	func warn(_ message: String, _ arguments: [String:Any?]) {
 
-		args(message, arguments, "WRN")
+		guard isAllowed(.warning) else { return }
+		
+		args(message, arguments, LogType.warning.toCode())
 	}
 	func warn(_ message: String, _ arguments: CVarArg...) {
 
-		write("WRN", String(format: message, arguments))
+		guard isAllowed(.warning) else { return }
+		
+		write(category: LogType.warning.toCode(), message: String(format: message, arguments))
 	}
 	
 	func error(_ message: String, _ arguments: [String:Any?]) {
 
-		args(message, arguments, "ERR")
+		guard isAllowed(.error) else { return }
+		
+		args(message, arguments, LogType.error.toCode())
 	}
 	func error(_ message: String, _ arguments: CVarArg...) {
 
-		write("ERR", String(format: message, arguments))
+		guard isAllowed(.error) else { return }
+		
+		write(category: LogType.error.toCode(), message: String(format: message, arguments))
 	}
 	
 	func SQL(_ message: String, _ arguments: [String:Any?]) {
 
-		args(message, arguments, "SQL")
+		guard isAllowed(.sql) else { return }
+		
+		args(message, arguments, LogType.sql.toCode())
 	}
 	func SQL(_ message: String, _ args: CVarArg...) {
 
-		write("SQL", String(format: message, args))
+		guard isAllowed(.sql) else { return }
+		
+		write(category: LogType.sql.toCode(), message: String(format: message, args))
 	}
 	
 }
@@ -392,11 +453,11 @@ public extension Optional where Wrapped == IIndentLog {
 		var log = self!
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		write(">>>", title)
+		write(type: .indent, category: ">>>", message: title)
 		log.IndentLog_Increment()
 		innerCode()
 		log.IndentLog_Reset(indent)
-		write("<<<", "\(title) {\(Date().timeSinceString(inTS))}")
+		write(type: .indent, category: "<<<", message: "\(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
 	/// New indent with a return value
@@ -412,11 +473,11 @@ public extension Optional where Wrapped == IIndentLog {
 		var log = self!
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		write(">>>", title)
+		write(type: .indent, category: ">>>", message: title)
 		log.IndentLog_Increment()
 		let ret = innerCode()
 		log.IndentLog_Reset(indent)
-		write("<<<", "\(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		write(type: .indent, category: "<<<", message: "\(title) {\(Date().timeSinceString(inTS))}")
 		return ret
 	}
 	
@@ -428,11 +489,13 @@ public extension Optional where Wrapped == IIndentLog {
 		var log = self!
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
 	func checkpoint<T>(_ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
@@ -442,16 +505,18 @@ public extension Optional where Wrapped == IIndentLog {
 		var log = self!
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		let ret = innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
 		return ret
 	}
 	
 	func checkpoint(_ label: String, _ title: String, _ innerCode: () -> Void, keyAndValues: [String:Any?]) {
-		self.label(label)
+		if isAllowed(.checkpoint) { self.label(label) }
 		if self == nil {
 			innerCode()
 			return
@@ -460,11 +525,13 @@ public extension Optional where Wrapped == IIndentLog {
 		var log = self!
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) {\(Date().timeSinceString(inTS))}")
 	}
 	
 	func checkpoint<T>(_ label: String, _ title: String, _ innerCode: () -> T, keyAndValues: [String:Any?]) -> T {
@@ -472,20 +539,23 @@ public extension Optional where Wrapped == IIndentLog {
 			return innerCode()
 		}
 		var log = self!
-		self.label(label)
+		if isAllowed(.checkpoint) { self.label(label) }
 		let indent = log.IndentLog_Indent
 		let inTS = Date()
-		args(title, keyAndValues, "CHK")
-		log.IndentLog_Increment()
+		if isAllowed(.checkpoint) {
+			args(title, keyAndValues, "CHK")
+			log.IndentLog_Increment()
+		}
 		let ret = innerCode()
 		log.IndentLog_Reset(indent)
-		write("---", "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
+		write(type: .checkpoint, category: "---", message: "<<< \(title) [\(ret)] {\(Date().timeSinceString(inTS))}")
 		return ret
 		
 	}
 	
 	func label(_ title: String) {
-		if self == nil {
+		guard self?.IndentLog_Allowed?.count ?? 1 > 0 else { return }
+		guard self != nil else {
 			return
 		}
 		let lines = title.splitIntoLines(60)
@@ -496,7 +566,7 @@ public extension Optional where Wrapped == IIndentLog {
 		if max > 0 {
 			let spaces = " ".repeating(max)
 			let top = "/".repeating(max + 8)
-			write("///", top, 1000, 0)
+			write(category: "///", message: top, maxLen: 1000, indentedCount: 0)
 			for line in lines {
 				let outline = "/// " + (line.trim() + spaces).substring(from: 0, length: max) + " ///"
 				writeNoTS(outline)
@@ -506,6 +576,7 @@ public extension Optional where Wrapped == IIndentLog {
 	}
 	
 	func blank() {
+		guard self?.IndentLog_Allowed?.count ?? 1 > 0 else { return }
 		writeNoTS("")
 	}
 	
@@ -513,7 +584,22 @@ public extension Optional where Wrapped == IIndentLog {
 		return ".  ".repeating(indent)
 	}
 	
-	private func write(_ category: String, _ message: String, _ maxLen: Int = 60, _ indentedCount : Int? = nil) {
+	private func isAllowed(_ types: LogType...) -> Bool {
+		guard let allowedTypes = self?.IndentLog_Allowed else {
+			return true
+		}
+		return types.first { (type) -> Bool in
+			return allowedTypes.contains(type)
+			} != nil
+	}
+	
+	private func write(type: LogType, category: String, message: String, maxLen: Int = 60, indentedCount : Int? = nil) {
+		if isAllowed(type) {
+			write(category: category, message: message, maxLen: maxLen, indentedCount: indentedCount)
+		}
+	}
+	
+	private func write(category: String, message: String, maxLen: Int = 60, indentedCount : Int? = nil) {
 		
 		let messageLines = message.splitIntoLines(maxLen)
 		var output = Date().standardString() + "  "
@@ -564,11 +650,12 @@ public extension Optional where Wrapped == IIndentLog {
 	}
 	
 	func args(_ title: String, _ keysValues: [String:Any?], _ alternate: String = "ARG") {
+		guard self?.IndentLog_Allowed?.count ?? 1 > 0 else { return }
 		if self == nil {
 			return
 		}
 		if title.trim().length() > 0 {
-			write(alternate, title)
+			write(category: alternate, message: title)
 		}
 		let maxLen = keysValues.keys.map { (k) -> Int in
 			return k.trim().length()
@@ -580,78 +667,58 @@ public extension Optional where Wrapped == IIndentLog {
 		for kv in keysValues {
 			let k = (kv.key + " ".repeat(maxLen!)).substring(from: 0, length: maxLen!)
 			if (kv.value == nil) {
-				write("...", "--> \(k) : <nil>")
+				write(category: "...", message: "--> \(k) : <nil>")
 			}
 			else {
-				write("...", "--> \(k) : \(kv.value!)")
+				write(category: "...", message: "--> \(k) : \(kv.value!)")
 			}
 		}
-		write("", "")
+		blank()
 	}
 	
 	func debug(_ message: String, _ arguments: [String:Any?]) {
-		if self == nil {
-			return
-		}
-		args(message, arguments, "DBG")
+		guard self != nil && isAllowed(.debug) else { return }
+		args(message, arguments, LogType.debug.toCode())
 	}
 	func debug(_ message: String, _ arguments: CVarArg...) {
-		if self == nil {
-			return
-		}
-		write("DBG", String(format: message, arguments))
+		guard self != nil && isAllowed(.debug) else { return }
+		write(category: LogType.debug.toCode(), message: String(format: message, arguments))
 	}
 	
 	func info(_ message: String, _ arguments: [String:Any?]) {
-		if self == nil {
-			return
-		}
-		args(message, arguments, "INF")
+		guard self != nil && isAllowed(.info) else { return }
+		args(message, arguments, LogType.info.toCode())
 	}
 	func info(_ message: String, _ arguments: CVarArg...) {
-		if self == nil {
-			return
-		}
-		write("INF", String(format: message, arguments))
+		guard self != nil && isAllowed(.info) else { return }
+		write(category: LogType.info.toCode(), message: String(format: message, arguments))
 	}
 	
 	func warn(_ message: String, _ arguments: [String:Any?]) {
-		if self == nil {
-			return
-		}
-		args(message, arguments, "WRN")
+		guard self != nil && isAllowed(.warning) else { return }
+		args(message, arguments, LogType.warning.toCode())
 	}
 	func warn(_ message: String, _ arguments: CVarArg...) {
-		if self == nil {
-			return
-		}
-		write("WRN", String(format: message, arguments))
+		guard self != nil && isAllowed(.warning) else { return }
+		write(category: LogType.warning.toCode(), message: String(format: message, arguments))
 	}
 	
 	func error(_ message: String, _ arguments: [String:Any?]) {
-		if self == nil {
-			return
-		}
-		args(message, arguments, "ERR")
+		guard self != nil && isAllowed(.error) else { return }
+		args(message, arguments, LogType.error.toCode())
 	}
 	func error(_ message: String, _ arguments: CVarArg...) {
-		if self == nil {
-			return
-		}
-		write("ERR", String(format: message, arguments))
+		guard self != nil && isAllowed(.error) else { return }
+		write(category: LogType.error.toCode(), message: String(format: message, arguments))
 	}
 	
 	func SQL(_ message: String, _ arguments: [String:Any?]) {
-		if self == nil {
-			return
-		}
-		args(message, arguments, "SQL")
+		guard self != nil && isAllowed(.sql) else { return }
+		args(message, arguments, LogType.sql.toCode())
 	}
 	func SQL(_ message: String, _ args: CVarArg...) {
-		if self == nil {
-			return
-		}
-		write("SQL", String(format: message, args))
+		guard self != nil && isAllowed(.sql) else { return }
+		write(category: LogType.sql.toCode(), message: String(format: message, args))
 	}
 	
 }
